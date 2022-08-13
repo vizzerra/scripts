@@ -13,10 +13,11 @@ import seaborn as sns
 # Import Biopython tools for running local BLASTX
 from Bio.Blast.Applications import NcbiblastpCommandline
 
-# Colour scale transformation
+# Color scale transformation
 from matplotlib.colors import LogNorm
 
 # Define input and output directories
+# You may need to change this depedning on OS
 datadir = "PATH/TO/DATA/DIR"
 outdir = "PATH/TO/OUT/DIR"
 
@@ -45,28 +46,44 @@ print("REVERSE: %s" % rev_blastp)
 # IT IS SKIPPED BY DEFAULT
 
 # Run BLAST searches
-# !! Uncomment to run local BLAST searches !!
-#fwd_stdout, fwd_stderr = fwd_blastp()
+# You can comment out below if you have previous BLAST results, see line 59
+fwd_stdout, fwd_stderr = fwd_blastp()
 rev_stdout, rev_stderr = rev_blastp()
 
 # Check STDOUT, STDERR
-#print("FWD STDOUT: %s" % fwd_stdout)
-#print("FWD STDERR: %s" % fwd_stderr)
-#print("REV STDOUT: %s" % rev_stdout)
-#print("REV STDERR: %s" % rev_stderr)
+print("FWD STDOUT: %s" % fwd_stdout)
+print("FWD STDERR: %s" % fwd_stderr)
+print("REV STDOUT: %s" % rev_stdout)
+print("REV STDERR: %s" % rev_stderr)
 
-# PRECALCULATED BLAST RESULTS
+# FOR PRECALCULATED BLAST RESULTS
 # COMMENT OUT THESE TWO LINES IF YOU WANT TO USE THE RESULTS FROM THE CELL ABOVE
-fwd_out = os.path.join('path','to', 'file')
-rev_out = os.path.join('path','to', 'file')
+# fwd_out = os.path.join('path','to', 'file')
+# rev_out = os.path.join('path','to', 'file')
 
 # Load the BLAST results into Pandas dataframes
 fwd_results = pd.read_csv(fwd_out, sep="\t", header=None)
 rev_results = pd.read_csv(rev_out, sep="\t", header=None)
 
 # Add headers to forward and reverse results dataframes
+# You can change if your blast.tab are different
 headers = ["query", "subject", "identity", "coverage",
            "qlength", "slength", "alength",
            "bitscore", "E-value"]
 fwd_results.columns = headers
 rev_results.columns = headers
+
+# FIND RECIPROCAL BEST HITS (RBH)
+
+# Merge foreward and reverse resutls
+rbbh = pd.merge(fwd_results, rev_results[['query', 'subject']],
+                left_on='subject', right_on='query',
+                how='outer')
+
+# Remove non-RBH
+rbbh = rbbh.loc[rbbh.query_x == rbbh.subject_y]
+
+# Group duplicate RBH rows, taking the maximum value in each column
+rbbh = rbbh.groupby(['query_x', 'subject_x']).max()
+
+print("Done.") 
